@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package client;
+
+option go_package = "client/Rq";
+
+service Request {
+  rpc PutRequest(FlowRequest) returns (Reply);
+  rpc GetConfig(ConfigRequest) returns (ConfigReply);
+  rpc GetIMSI(IMSIRequest) returns (IMSIReply);
+  rpc GetRule(RuleRequest) returns (RuleReply);
+}
+
+message FlowRequest {
+  string fseid = 1;
+}
+
+message Reply {
+  uint64 Rx_Packet = 1;
+  uint64 Tx_Packet = 2;
+  uint64 Rx_Byte = 3;
+  uint64 Tx_Byte = 4;
+  repeated string All_IMSI = 5;;
+  uint64 count = 6;
+}
+
+message ConfigRequest {}
+
+message ConfigReply {
+  UPFConfig config = 1;
+}
+
+message IMSIRequest {
+  string imsi = 1;
+}
+
+message IMSIReply {
+  repeated IMSIStruct imsi = 1;
+}
+
+message RuleRequest{
+  string fsied = 1;
+}
+
+message RuleReply{
+  rulestruct session=1;
+}
+
+message rulestruct{
+  pdrstruct pdr=1;
+  farstruct far=2;
+  qerstruct qer=3;
+  urrstruct urr=4;
+}
+
+message pdrstruct{
+  string pdr_id=1;
+  string fsied=2;
+}
+
+message farstruct{
+  string far_id=1;
+  string fsied=2;
+}
+
+message qerstruct{
+  string qer_id=1;
+  string fsied=2;
+}
+
+message urrstruct{
+  string urr_id=1;
+  string fsied=2;
+}
+
+message IMSIStruct {  
+  string Internet = 1;
+  string IMS = 2;
+}
+
+message UPFConfig {
+  string mode = 1;
+  TableSizes table_sizes = 2;
+  string log_level = 3;
+  SimConfig sim = 4;
+  bool hwcksum = 5;
+  bool gtppsc = 6;
+  bool ddp = 7;
+  bool measure_upf = 8;
+  bool measure_flow = 9;
+  Interface access = 10;
+  Interface core = 11;
+  int32 workers = 12;
+  int32 max_req_retries = 13;
+  string resp_timeout = 14;
+  bool enable_ntf = 15;
+  bool enable_p4rt = 16;
+  bool enable_hbTimer = 17;
+  bool enable_gtpu_path_monitoring = 18;
+  repeated QoSConfig qci_qos_config = 19;
+  SliceRateLimit slice_rate_limit_config = 20;
+  CPInterface cpiface = 21;
+  P4RTCInterface p4rtciface = 22;
+}
+
+message TableSizes {
+  int32 pdrLookup = 1;
+  int32 flowMeasure = 2;
+  int32 appQERLookup = 3;
+  int32 sessionQERLookup = 4;
+  int32 farLookup = 5;
+}
+
+message SimConfig {
+  string core = 1;
+  int32 max_sessions = 2;
+  string start_ue_ip = 3;
+  string start_enb_ip = 4;
+  string start_aupf_ip = 5;
+  string n6_app_ip = 6;
+  string n9_app_ip = 7;
+  string start_n3_teid = 8;
+  string start_n9_teid = 9;
+  int32 uplink_mbr = 10;
+  int32 uplink_gbr = 11;
+  int32 downlink_mbr = 12;
+  int32 downlink_gbr = 13;
+  int32 pkt_size = 14;
+  int32 total_flows = 15;
+}
+
+message Interface {
+  string ifname = 1;
+}
+
+message QoSConfig {
+  int32 qci = 1;
+  int32 cbs = 2;
+  int32 ebs = 3;
+  int32 pbs = 4;
+  int32 burst_duration_ms = 5;
+  int32 priority = 6;
+}
+
+message SliceRateLimit {
+  int32 n6_bps = 1;
+  int32 n6_burst_bytes = 2;
+  int32 n3_bps = 3;
+  int32 n3_burst_bytes = 4;
+}
+
+message CPInterface {
+  repeated string peers = 1;
+  string dnn = 2;
+  string http_port = 3;
+  bool enable_ue_ip_alloc = 4;
+  string ue_ip_pool = 5;
+}
+
+message P4RTCInterface {
+  string access_ip = 1;
+  string p4rtc_server = 2;
+  string p4rtc_port = 3;
+  int32 slice_id = 4;
+  int32 default_tc = 5;
+  bool clear_state_on_restart = 6;
+}

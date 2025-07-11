@@ -1,0 +1,22 @@
+# Server Dockerfile
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+WORKDIR /app/Server
+
+RUN go build -o server ./server.go
+
+# Final image
+FROM debian:bookworm
+
+WORKDIR /app
+COPY --from=builder /app/Server/server .
+COPY Server/upf.jsonc .
+
+CMD ["./server"]

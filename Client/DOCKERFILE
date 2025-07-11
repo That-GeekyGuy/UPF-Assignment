@@ -1,0 +1,21 @@
+# Client Dockerfile
+FROM golang:1.24 AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+WORKDIR /app/Client
+
+RUN go build -o client
+
+# Final image
+FROM debian:bookworm
+
+WORKDIR /app
+COPY --from=builder /app/Client/client .
+
+CMD ["./client"]

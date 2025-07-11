@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Server/Dockerfile
+    ports:
+      - "3000:3000"     # Config agent
+      - "4678:4678"     # IMSI agent
+      - "50051:50051"   # PFCP agent
+      - "2000:2000"     # Rule agent
+    container_name: grpc-server
+    volumes:
+      - ./Server/upf.jsonc:/app/upf.jsonc
+
+  client:
+    build:
+      context: .
+      dockerfile: Client/Dockerfile
+    depends_on:
+      - server
+    container_name: grpc-client
+    stdin_open: true  # like -i
+    tty: true         # like -t
