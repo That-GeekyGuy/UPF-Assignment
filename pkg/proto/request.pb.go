@@ -4,7 +4,7 @@
 // 	protoc        v6.31.1
 // source: request.proto
 
-package proto
+package request
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -67,12 +67,14 @@ func (x *FlowRequest) GetFseid() string {
 
 type Reply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Rx_Packet     uint64                 `protobuf:"varint,1,opt,name=Rx_Packet,json=RxPacket,proto3" json:"Rx_Packet,omitempty"`
-	Tx_Packet     uint64                 `protobuf:"varint,2,opt,name=Tx_Packet,json=TxPacket,proto3" json:"Tx_Packet,omitempty"`
-	Rx_Byte       uint64                 `protobuf:"varint,3,opt,name=Rx_Byte,json=RxByte,proto3" json:"Rx_Byte,omitempty"`
-	Tx_Byte       uint64                 `protobuf:"varint,4,opt,name=Tx_Byte,json=TxByte,proto3" json:"Tx_Byte,omitempty"`
-	All_IMSI      []string               `protobuf:"bytes,5,rep,name=All_IMSI,json=AllIMSI,proto3" json:"All_IMSI,omitempty"`
-	Count         uint64                 `protobuf:"varint,6,opt,name=count,proto3" json:"count,omitempty"`
+	Total_Packets uint64                 `protobuf:"varint,1,opt,name=Total_Packets,json=TotalPackets,proto3" json:"Total_Packets,omitempty"`
+	Rx_Packet     uint64                 `protobuf:"varint,2,opt,name=Rx_Packet,json=RxPacket,proto3" json:"Rx_Packet,omitempty"`
+	Tx_Packet     uint64                 `protobuf:"varint,3,opt,name=Tx_Packet,json=TxPacket,proto3" json:"Tx_Packet,omitempty"`
+	Rx_Speed      uint64                 `protobuf:"varint,4,opt,name=Rx_Speed,json=RxSpeed,proto3" json:"Rx_Speed,omitempty"`
+	Tx_Speed      uint64                 `protobuf:"varint,5,opt,name=Tx_Speed,json=TxSpeed,proto3" json:"Tx_Speed,omitempty"`
+	Total_Speed   uint64                 `protobuf:"varint,6,opt,name=Total_Speed,json=TotalSpeed,proto3" json:"Total_Speed,omitempty"`
+	All_IMSI      []string               `protobuf:"bytes,7,rep,name=All_IMSI,json=AllIMSI,proto3" json:"All_IMSI,omitempty"`
+	Count         uint64                 `protobuf:"varint,8,opt,name=count,proto3" json:"count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -107,6 +109,13 @@ func (*Reply) Descriptor() ([]byte, []int) {
 	return file_request_proto_rawDescGZIP(), []int{1}
 }
 
+func (x *Reply) GetTotal_Packets() uint64 {
+	if x != nil {
+		return x.Total_Packets
+	}
+	return 0
+}
+
 func (x *Reply) GetRx_Packet() uint64 {
 	if x != nil {
 		return x.Rx_Packet
@@ -121,16 +130,23 @@ func (x *Reply) GetTx_Packet() uint64 {
 	return 0
 }
 
-func (x *Reply) GetRx_Byte() uint64 {
+func (x *Reply) GetRx_Speed() uint64 {
 	if x != nil {
-		return x.Rx_Byte
+		return x.Rx_Speed
 	}
 	return 0
 }
 
-func (x *Reply) GetTx_Byte() uint64 {
+func (x *Reply) GetTx_Speed() uint64 {
 	if x != nil {
-		return x.Tx_Byte
+		return x.Tx_Speed
+	}
+	return 0
+}
+
+func (x *Reply) GetTotal_Speed() uint64 {
+	if x != nil {
+		return x.Total_Speed
 	}
 	return 0
 }
@@ -1539,14 +1555,17 @@ const file_request_proto_rawDesc = "" +
 	"\n" +
 	"\rrequest.proto\x12\x06client\"#\n" +
 	"\vFlowRequest\x12\x14\n" +
-	"\x05fseid\x18\x01 \x01(\tR\x05fseid\"\xa4\x01\n" +
-	"\x05Reply\x12\x1b\n" +
-	"\tRx_Packet\x18\x01 \x01(\x04R\bRxPacket\x12\x1b\n" +
-	"\tTx_Packet\x18\x02 \x01(\x04R\bTxPacket\x12\x17\n" +
-	"\aRx_Byte\x18\x03 \x01(\x04R\x06RxByte\x12\x17\n" +
-	"\aTx_Byte\x18\x04 \x01(\x04R\x06TxByte\x12\x19\n" +
-	"\bAll_IMSI\x18\x05 \x03(\tR\aAllIMSI\x12\x14\n" +
-	"\x05count\x18\x06 \x01(\x04R\x05count\"\x0f\n" +
+	"\x05fseid\x18\x01 \x01(\tR\x05fseid\"\xee\x01\n" +
+	"\x05Reply\x12#\n" +
+	"\rTotal_Packets\x18\x01 \x01(\x04R\fTotalPackets\x12\x1b\n" +
+	"\tRx_Packet\x18\x02 \x01(\x04R\bRxPacket\x12\x1b\n" +
+	"\tTx_Packet\x18\x03 \x01(\x04R\bTxPacket\x12\x19\n" +
+	"\bRx_Speed\x18\x04 \x01(\x04R\aRxSpeed\x12\x19\n" +
+	"\bTx_Speed\x18\x05 \x01(\x04R\aTxSpeed\x12\x1f\n" +
+	"\vTotal_Speed\x18\x06 \x01(\x04R\n" +
+	"TotalSpeed\x12\x19\n" +
+	"\bAll_IMSI\x18\a \x03(\tR\aAllIMSI\x12\x14\n" +
+	"\x05count\x18\b \x01(\x04R\x05count\"\x0f\n" +
 	"\rConfigRequest\"8\n" +
 	"\vConfigReply\x12)\n" +
 	"\x06config\x18\x01 \x01(\v2\x11.client.UPFConfigR\x06config\"!\n" +
@@ -1667,13 +1686,13 @@ const file_request_proto_rawDesc = "" +
 	"\bslice_id\x18\x04 \x01(\x05R\asliceId\x12\x1d\n" +
 	"\n" +
 	"default_tc\x18\x05 \x01(\x05R\tdefaultTc\x123\n" +
-	"\x16clear_state_on_restart\x18\x06 \x01(\bR\x13clearStateOnRestart2\xda\x01\n" +
-	"\aRequest\x120\n" +
+	"\x16clear_state_on_restart\x18\x06 \x01(\bR\x13clearStateOnRestart2\xdc\x01\n" +
+	"\aRequest\x122\n" +
 	"\n" +
-	"PutRequest\x12\x13.client.FlowRequest\x1a\r.client.Reply\x127\n" +
+	"PutRequest\x12\x13.client.FlowRequest\x1a\r.client.Reply0\x01\x127\n" +
 	"\tGetConfig\x12\x15.client.ConfigRequest\x1a\x13.client.ConfigReply\x121\n" +
 	"\aGetIMSI\x12\x13.client.IMSIRequest\x1a\x11.client.IMSIReply\x121\n" +
-	"\aGetRule\x12\x13.client.RuleRequest\x1a\x11.client.RuleReplyB\vZ\tclient/Rqb\x06proto3"
+	"\aGetRule\x12\x13.client.RuleRequest\x1a\x11.client.RuleReplyB\x13Z\x11pkg/proto;requestb\x06proto3"
 
 var (
 	file_request_proto_rawDescOnce sync.Once

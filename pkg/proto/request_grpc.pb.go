@@ -4,7 +4,7 @@
 // - protoc             v6.31.1
 // source: request.proto
 
-package proto
+package request
 
 import (
 	context "context"
@@ -29,7 +29,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type RequestClient interface {
-	PutRequest(ctx context.Context, in *FlowRequest, opts ...grpc.CallOption) (*Reply, error)
+	PutRequest(ctx context.Context, in *FlowRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Reply], error)
 	GetConfig(ctx context.Context, in *ConfigRequest, opts ...grpc.CallOption) (*ConfigReply, error)
 	GetIMSI(ctx context.Context, in *IMSIRequest, opts ...grpc.CallOption) (*IMSIReply, error)
 	GetRule(ctx context.Context, in *RuleRequest, opts ...grpc.CallOption) (*RuleReply, error)
@@ -43,15 +43,24 @@ func NewRequestClient(cc grpc.ClientConnInterface) RequestClient {
 	return &requestClient{cc}
 }
 
-func (c *requestClient) PutRequest(ctx context.Context, in *FlowRequest, opts ...grpc.CallOption) (*Reply, error) {
+func (c *requestClient) PutRequest(ctx context.Context, in *FlowRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Reply], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Reply)
-	err := c.cc.Invoke(ctx, Request_PutRequest_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Request_ServiceDesc.Streams[0], Request_PutRequest_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[FlowRequest, Reply]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Request_PutRequestClient = grpc.ServerStreamingClient[Reply]
 
 func (c *requestClient) GetConfig(ctx context.Context, in *ConfigRequest, opts ...grpc.CallOption) (*ConfigReply, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -87,7 +96,7 @@ func (c *requestClient) GetRule(ctx context.Context, in *RuleRequest, opts ...gr
 // All implementations must embed UnimplementedRequestServer
 // for forward compatibility.
 type RequestServer interface {
-	PutRequest(context.Context, *FlowRequest) (*Reply, error)
+	PutRequest(*FlowRequest, grpc.ServerStreamingServer[Reply]) error
 	GetConfig(context.Context, *ConfigRequest) (*ConfigReply, error)
 	GetIMSI(context.Context, *IMSIRequest) (*IMSIReply, error)
 	GetRule(context.Context, *RuleRequest) (*RuleReply, error)
@@ -101,8 +110,8 @@ type RequestServer interface {
 // pointer dereference when methods are called.
 type UnimplementedRequestServer struct{}
 
-func (UnimplementedRequestServer) PutRequest(context.Context, *FlowRequest) (*Reply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method PutRequest not implemented")
+func (UnimplementedRequestServer) PutRequest(*FlowRequest, grpc.ServerStreamingServer[Reply]) error {
+	return status.Errorf(codes.Unimplemented, "method PutRequest not implemented")
 }
 func (UnimplementedRequestServer) GetConfig(context.Context, *ConfigRequest) (*ConfigReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetConfig not implemented")
@@ -134,23 +143,16 @@ func RegisterRequestServer(s grpc.ServiceRegistrar, srv RequestServer) {
 	s.RegisterService(&Request_ServiceDesc, srv)
 }
 
-func _Request_PutRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(FlowRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _Request_PutRequest_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(FlowRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(RequestServer).PutRequest(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Request_PutRequest_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RequestServer).PutRequest(ctx, req.(*FlowRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(RequestServer).PutRequest(m, &grpc.GenericServerStream[FlowRequest, Reply]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Request_PutRequestServer = grpc.ServerStreamingServer[Reply]
 
 func _Request_GetConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ConfigRequest)
@@ -214,10 +216,6 @@ var Request_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*RequestServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "PutRequest",
-			Handler:    _Request_PutRequest_Handler,
-		},
-		{
 			MethodName: "GetConfig",
 			Handler:    _Request_GetConfig_Handler,
 		},
@@ -230,6 +228,12 @@ var Request_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Request_GetRule_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "PutRequest",
+			Handler:       _Request_PutRequest_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "request.proto",
 }

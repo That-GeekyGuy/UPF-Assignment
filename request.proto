@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package client;
 
-option go_package = "client/Rq";
+option go_package = "pkg/proto;request";
 
 service Request {
-  rpc PutRequest(FlowRequest) returns (Reply);
+  rpc PutRequest(FlowRequest) returns (stream Reply);
   rpc GetConfig(ConfigRequest) returns (ConfigReply);
   rpc GetIMSI(IMSIRequest) returns (IMSIReply);
   rpc GetRule(RuleRequest) returns (RuleReply);
@@ -16,12 +16,14 @@ message FlowRequest {
 }
 
 message Reply {
-  uint64 Rx_Packet = 1;
-  uint64 Tx_Packet = 2;
-  uint64 Rx_Byte = 3;
-  uint64 Tx_Byte = 4;
-  repeated string All_IMSI = 5;;
-  uint64 count = 6;
+  uint64 Total_Packets = 1;
+  uint64 Rx_Packet = 2;
+  uint64 Tx_Packet = 3;
+  uint64 Rx_Speed = 4;
+  uint64 Tx_Speed = 5;
+  uint64 Total_Speed = 6;
+  repeated string All_IMSI = 7;;
+  uint64 count = 8;
 }
 
 message ConfigRequest {}

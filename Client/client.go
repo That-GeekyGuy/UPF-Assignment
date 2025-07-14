@@ -45,21 +45,33 @@ func main() {
 			fseid, _ := reader.ReadString('\n')
 			fseid = strings.TrimSpace(fseid)
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 			defer cancel()
-			resp, err := client.PutRequest(ctx, &pb.FlowRequest{Fseid: fseid})
+
+			stream, err := client.PutRequest(ctx, &pb.FlowRequest{Fseid: fseid})
 			if err != nil {
-				log.Printf("Error: %v", err)
+				log.Printf("Error starting stream: %v", err)
 				continue
 			}
 
-			log.Println("Rx Packet:", resp.Rx_Packet)
-			log.Println("Tx Packet:", resp.Tx_Packet)
-			log.Println("Rx Byte:", resp.Rx_Byte)
-			log.Println("Tx Byte:", resp.Tx_Byte)
-			log.Println("All IMSI:", resp.All_IMSI)
-			log.Println("Count:", resp.Count)
+			log.Println("Streaming flow data...")
+			for {
+				resp, err := stream.Recv()
+				if err != nil {
+					log.Printf("Stream ended: %v", err)
+					break
+				}
 
+				log.Println("----------")
+				log.Println("Rx Packet:", resp.Rx_Packet)
+				log.Println("Tx Packet:", resp.Tx_Packet)
+				log.Println("Rx Speed:", resp.Rx_Speed)
+				log.Println("Tx Speed:", resp.Tx_Speed)
+				log.Println("Total Packets:", resp.Total_Packets)
+				log.Println("Total Speed:", resp.Total_Speed)
+				log.Println("All IMSI:", resp.All_IMSI)
+				log.Println("Count:", resp.Count)
+			}
 		} else if option == "2" {
 			serverAddr := os.Getenv("SERVER_ADDRESS")
 			if serverAddr == "" {
