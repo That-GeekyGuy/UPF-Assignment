@@ -19,28 +19,28 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		if err := config.StartConfigAgent(":3000"); err != nil {
+		if err := config.StartConfigAgent("3000"); err != nil {
 			log.Printf("❌ Config Agent failed: %v", err)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := imsi.StartIMSIAgent(":4678"); err != nil {
+		if err := imsi.StartIMSIAgent("4678"); err != nil {
 			log.Printf("❌ IMSI Agent failed: %v", err)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := pfcp.StartPFCPAgent(":50051"); err != nil {
+		if err := pfcp.StartPFCPAgent("50051"); err != nil {
 			log.Printf("❌ PFCP Agent failed: %v", err)
 		}
 	}()
 
 	go func() {
 		defer wg.Done()
-		if err := rule.StartRuleAgent(":2000"); err != nil {
+		if err := rule.StartRuleAgent("2000"); err != nil {
 			log.Printf("❌ Rule Agent failed: %v", err)
 		}
 	}()

@@ -3,29 +3,49 @@ package main
 import (
 	"bufio"
 	"context"
+	"fmt"
+	"io"
+	"github.com/fatih/color"
+	"github.com/olekukonko/tablewriter"
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	pb "upf/pkg/proto"
 
 	"google.golang.org/grpc"
 )
 
+// ANSI color helpers using fatih/color
+var (
+    cyan  = color.New(color.FgCyan).SprintFunc()
+    green = color.New(color.FgGreen).SprintFunc()
+)
+
+func printMenu() {
+    fmt.Print("\033[2J\033[H")
+    fmt.Printf("%s\n", cyan("┌─────────────────────────────── UPF Client ────────────────────────────────┐"))
+    table := tablewriter.NewWriter(os.Stdout)
+    table.SetBorder(false)
+    table.SetColumnSeparator(" ")
+    table.Append([]string{green("1."), "Get Flow Data"})
+    table.Append([]string{green("2."), "Get Config"})
+    table.Append([]string{green("3."), "Get IMSI"})
+    table.Append([]string{green("4."), "Get Rule"})
+    table.Append([]string{green("5."), "Exit"})
+    table.Render()
+    fmt.Printf("%s\n", cyan("└────────────────────────────────────────────────────────────────────────────┘"))
+    fmt.Print(green("Select an option [1-5]: "))
+}
+
 func main() {
+
+	// Disable default log timestamps/clutter in output
+	log.SetOutput(io.Discard)
 
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		log.Println("Welcome to the UPF Client!")
-		log.Print("======Menu======")
-		log.Print("1. Get Flow Data")
-		log.Print("2. Get Config")
-		log.Print("3. Get IMSI")
-		log.Print("4. Get Rule")
-		log.Print("5. Exit")
-		log.Print("===================")
-		log.Printf("Select an option (1 or 2 or 3 or 4 or 5): ")
+		printMenu()
 		option, _ := reader.ReadString('\n')
 		option = strings.TrimSpace(option)
 
@@ -34,6 +54,7 @@ func main() {
 			if serverAddr == "" {
 				serverAddr = "grpc-server-service.upf-namespace.svc.cluster.local"
 			}
+			log.Printf("Dialing gRPC server at: %s", serverAddr+":PORT")
 			conn, err := grpc.Dial(serverAddr+":50051", grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("failed to connect: %v", err)
@@ -41,11 +62,10 @@ func main() {
 			defer conn.Close()
 
 			client := pb.NewRequestClient(conn)
-			log.Print("Enter FSEID to get flow data (press Enter to skip): ")
+			fmt.Print("Enter FSEID to get flow data (press Enter to skip): ")
 			fseid, _ := reader.ReadString('\n')
 			fseid = strings.TrimSpace(fseid)
-
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			stream, err := client.PutRequest(ctx, &pb.FlowRequest{Fseid: fseid})
@@ -54,7 +74,13 @@ func main() {
 				continue
 			}
 
-			log.Println("Streaming flow data...")
+			fmt.Println("Press ENTER to stop streaming and return to menu...")
+			go func() {
+				bufio.NewReader(os.Stdin).ReadString('\n')
+				cancel()
+			}()
+
+			log.Println("Streaming flow data (table updates)...")
 			for {
 				resp, err := stream.Recv()
 				if err != nil {
@@ -62,21 +88,24 @@ func main() {
 					break
 				}
 
-				log.Println("----------")
-				log.Println("Rx Packet:", resp.Rx_Packet)
-				log.Println("Tx Packet:", resp.Tx_Packet)
-				log.Println("Rx Speed:", resp.Rx_Speed)
-				log.Println("Tx Speed:", resp.Tx_Speed)
-				log.Println("Total Packets:", resp.Total_Packets)
-				log.Println("Total Speed:", resp.Total_Speed)
-				log.Println("All IMSI:", resp.All_IMSI)
-				log.Println("Count:", resp.Count)
+				// Clear the screen and move cursor to top-left
+				fmt.Print("\033[2J\033[H")
+
+				// Render table
+				fmt.Println("+-------------+-------------+-------------+-------------+--------------+---------------+")
+				fmt.Println("| Rx Packet   | Tx Packet   | Rx Speed    | Tx Speed    | Total Packet | Total Speed   |")
+				fmt.Println("+-------------+-------------+-------------+-------------+--------------+---------------+")
+				fmt.Printf("| %-11d | %-11d | %-11d | %-11d | %-12d | %-13d |\n",
+					resp.Rx_Packet, resp.Tx_Packet, resp.Rx_Speed, resp.Tx_Speed, resp.Total_Packets, resp.Total_Speed)
+				fmt.Println("+-------------+-------------+-------------+-------------+--------------+---------------+")
+				fmt.Printf("All IMSI: %v   Updates: %d\n", resp.All_IMSI, resp.Count)
 			}
 		} else if option == "2" {
 			serverAddr := os.Getenv("SERVER_ADDRESS")
 			if serverAddr == "" {
 				serverAddr = "grpc-server-service.upf-namespace.svc.cluster.local"
 			}
+			log.Printf("Dialing gRPC server at: %s", serverAddr+":3000")
 			conn, err := grpc.Dial(serverAddr+":3000", grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("failed to connect: %v", err)
@@ -85,7 +114,7 @@ func main() {
 
 			client := pb.NewRequestClient(conn)
 			log.Println("Fetching configuration...")
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			configResp, err := client.GetConfig(ctx, &pb.ConfigRequest{})
@@ -100,40 +129,43 @@ func main() {
 				return
 			}
 
-			log.Println("=== Config Summary ===")
-			log.Printf("Mode: %s", cfg.GetMode())
-			log.Printf("Log Level: %s", cfg.GetLogLevel())
-			log.Printf("Workers: %d", cfg.GetWorkers())
-
+			// Render config using a table
+			fmt.Print("\033[2J\033[H")
+			table := tablewriter.NewWriter(os.Stdout)
+			table.SetHeader([]string{"Field", "Value"})
+			table.Append([]string{"Mode", cfg.GetMode()})
+			table.Append([]string{"Log Level", cfg.GetLogLevel()})
+			table.Append([]string{"Workers", fmt.Sprintf("%d", cfg.GetWorkers())})
 			if cfg.GetSim() != nil {
-				log.Printf("Simulation Max Sessions: %d", cfg.GetSim().GetMaxSessions())
-				log.Printf("Sim Core: %s", cfg.GetSim().GetCore())
+				table.Append([]string{"Sim Max Sessions", fmt.Sprintf("%d", cfg.GetSim().GetMaxSessions())})
+				table.Append([]string{"Sim Core", cfg.GetSim().GetCore()})
 			}
-
 			if cfg.GetAccess() != nil {
-				log.Printf("Access IF: %s", cfg.GetAccess().GetIfname())
+				table.Append([]string{"Access IF", cfg.GetAccess().GetIfname()})
 			}
 			if cfg.GetCore() != nil {
-				log.Printf("Core IF: %s", cfg.GetCore().GetIfname())
+				table.Append([]string{"Core IF", cfg.GetCore().GetIfname()})
 			}
-
-			log.Printf("Enable P4RT: %v", cfg.GetEnableP4Rt())
-			log.Printf("Enable Heartbeat Timer: %v", cfg.GetEnableHbTimer())
-
+			table.Append([]string{"Enable P4RT", fmt.Sprintf("%v", cfg.GetEnableP4Rt())})
+			table.Append([]string{"Enable HB Timer", fmt.Sprintf("%v", cfg.GetEnableHbTimer())})
 			if cfg.GetCpiface() != nil {
-				log.Printf("CP DNN: %s", cfg.GetCpiface().GetDnn())
-				log.Printf("CP Peers: %v", cfg.GetCpiface().GetPeers())
+				table.Append([]string{"CP DNN", cfg.GetCpiface().GetDnn()})
+				table.Append([]string{"CP Peers", fmt.Sprintf("%v", cfg.GetCpiface().GetPeers())})
 			}
-
 			if cfg.GetP4Rtciface() != nil {
-				log.Printf("P4 Server: %s", cfg.GetP4Rtciface().GetP4RtcServer())
-				log.Printf("P4 Port: %s", cfg.GetP4Rtciface().GetP4RtcPort())
+				table.Append([]string{"P4 Server", cfg.GetP4Rtciface().GetP4RtcServer()})
+				table.Append([]string{"P4 Port", cfg.GetP4Rtciface().GetP4RtcPort()})
 			}
+			table.Render()
+			fmt.Print("\nPress ENTER to return to menu...")
+			reader.ReadString('\n')
+
 		} else if option == "3" {
 			serverAddr := os.Getenv("SERVER_ADDRESS")
 			if serverAddr == "" {
 				serverAddr = "grpc-server-service.upf-namespace.svc.cluster.local"
 			}
+			log.Printf("Dialing gRPC server at: %s", serverAddr+":PORT")
 			conn, err := grpc.Dial(serverAddr+":4678", grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("Failed to connect: %v", err)
@@ -143,7 +175,7 @@ func main() {
 			client := pb.NewRequestClient(conn)
 			reader := bufio.NewReader(os.Stdin)
 
-			log.Print("Enter the IMSI to search: ")
+			fmt.Print("Enter the IMSI to search: ")
 			imsi, err := reader.ReadString('\n')
 			if err != nil {
 				log.Fatalf("Failed to read input: %v", err)
@@ -151,7 +183,7 @@ func main() {
 			}
 			imsi = strings.TrimSpace(imsi)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			imsiResp, err := client.GetIMSI(ctx, &pb.IMSIRequest{Imsi: imsi})
@@ -160,21 +192,26 @@ func main() {
 				continue
 			}
 
-			log.Println("=== IMSI Summary ===")
-			log.Printf("IMSI: %v", imsi)
-
-			if len(imsiResp.GetImsi()) > 0 {
-				data := imsiResp.GetImsi()[0]
-				log.Printf("Internet: %s", data.GetInternet())
-				log.Printf("IMS: %s", data.GetIMS())
-			} else {
-				log.Println("No IMSI data received.")
-			}
-		} else if option == "4" {
+			fmt.Print("\033[2J\033[H")
+imsiTable := tablewriter.NewWriter(os.Stdout)
+imsiTable.SetHeader([]string{"Field", "Value"})
+imsiTable.Append([]string{"IMSI", imsi})
+if len(imsiResp.GetImsi()) > 0 {
+    data := imsiResp.GetImsi()[0]
+    imsiTable.Append([]string{"Internet", data.GetInternet()})
+    imsiTable.Append([]string{"IMS", data.GetIMS()})
+}
+imsiTable.Render()
+			// Details already shown in table above
+		    fmt.Print("\nPress ENTER to return to menu...")
+    reader.ReadString('\n')
+        
+    } else if option == "4" {
 			serverAddr := os.Getenv("SERVER_ADDRESS")
 			if serverAddr == "" {
 				serverAddr = "grpc-server-service.upf-namespace.svc.cluster.local"
 			}
+			log.Printf("Dialing gRPC server at: %s", serverAddr+":PORT")
 			conn, err := grpc.Dial(serverAddr+":2000", grpc.WithInsecure())
 			if err != nil {
 				log.Fatalf("failed to connect: %v", err)
@@ -183,7 +220,7 @@ func main() {
 
 			client := pb.NewRequestClient(conn)
 			reader := bufio.NewReader(os.Stdin)
-			log.Println("Enter the FSIED")
+			fmt.Print("Enter the FSIED: ")
 			fsied, err := reader.ReadString('\n')
 			if err != nil {
 				log.Fatalf("Failed to read input: %v", err)
@@ -191,7 +228,7 @@ func main() {
 			}
 			fsied = strings.TrimSpace(fsied)
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
 			configResp, err := client.GetRule(ctx, &pb.RuleRequest{Fsied: fsied})
@@ -205,13 +242,24 @@ func main() {
 				log.Println("Empty rules received")
 				return
 			}
-			log.Println("=== Rules Summary ===")
-			log.Printf("FSIED: %s", fsied)
-			log.Printf("PDR ID: %s", cfg.Pdr.PdrId)
-			log.Printf("FAR ID: %s", cfg.Far.FarId)
-			log.Printf("QER ID: %s", cfg.Qer.QerId)
-			log.Printf("URR ID: %s", cfg.Urr.UrrId)
-		} else if option == "5" {
+			fmt.Print("\033[2J\033[H")
+ruleTable := tablewriter.NewWriter(os.Stdout)
+ruleTable.SetHeader([]string{"Field", "Value"})
+ruleTable.Append([]string{"FSIED", fsied})
+ruleTable.Append([]string{"PDR ID", cfg.Pdr.PdrId})
+ruleTable.Append([]string{"FAR ID", cfg.Far.FarId})
+ruleTable.Append([]string{"QER ID", cfg.Qer.QerId})
+ruleTable.Append([]string{"URR ID", cfg.Urr.UrrId})
+ruleTable.Render()
+			// Table already covers these fields
+			//
+			//
+			//
+			//
+		    fmt.Print("\nPress ENTER to return to menu...")
+    reader.ReadString('\n')
+        
+    } else if option == "5" {
 			log.Println("Goodbye!")
 			break
 		} else {
