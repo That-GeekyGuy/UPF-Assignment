@@ -21,9 +21,5 @@ services:
     depends_on:
       - server
     container_name: grpc-client
-    ports:
-      - "8080:8080"     # Web GUI
-    environment:
-      - SERVER_ADDRESS=server
     stdin_open: true  # like -i
     tty: true         # like -t

@@ -1,169 +1,212 @@
+// Protocol buffer definition for the UPF (User Plane Function) service
 syntax = "proto3";
 
 package client;
 
 option go_package = "pkg/proto;request";
 
+// Request service defines the main gRPC interface for UPF operations
 service Request {
-  rpc PutRequest(FlowRequest) returns (stream Reply);
-  rpc GetConfig(ConfigRequest) returns (ConfigReply);
-  rpc GetIMSI(IMSIRequest) returns (IMSIReply);
-  rpc GetRule(RuleRequest) returns (RuleReply);
+    // PutRequest streams flow data for a given FSEID
+    rpc PutRequest(FlowRequest) returns (stream Reply);
+    // GetConfig retrieves the UPF configuration
+    rpc GetConfig(ConfigRequest) returns (ConfigReply);
+    // GetIMSI retrieves IMSI-related information
+    rpc GetIMSI(IMSIRequest) returns (IMSIReply);
+    // GetRule retrieves rules associated with a specific FSEID
+    rpc GetRule(RuleRequest) returns (RuleReply);
+    // ValidatePDR validates a PDR for a given IMSI and DNN
+    rpc ValidatePDR(ValidatePDRRequest) returns (ValidatePDRReply);
 }
 
+// FlowRequest represents a request for flow data using FSEID
 message FlowRequest {
-  string fseid = 1;
+    string fseid = 1;  // F-SEID (Fully Qualified SEID)
 }
 
+// Reply contains flow statistics and IMSI information
 message Reply {
-  uint64 Total_Packets = 1;
-  uint64 Rx_Packet = 2;
-  uint64 Tx_Packet = 3;
-  uint64 Rx_Speed = 4;
-  uint64 Tx_Speed = 5;
-  uint64 Total_Speed = 6;
-  repeated string All_IMSI = 7;;
-  uint64 count = 8;
+    uint64 Total_Packets = 1;  // Total number of packets
+    uint64 Rx_Packet = 2;      // Number of received packets
+    uint64 Tx_Packet = 3;      // Number of transmitted packets
+    uint64 Rx_Speed = 4;       // Receive speed
+    uint64 Tx_Speed = 5;       // Transmit speed
+    uint64 Total_Speed = 6;    // Total speed (Rx + Tx)
+    repeated string All_IMSI = 7;  // List of all IMSIs
+    uint64 count = 8;          // Packet counter
 }
 
+// ConfigRequest is empty as it doesn't need parameters
 message ConfigRequest {}
 
+// ConfigReply contains the complete UPF configuration
 message ConfigReply {
-  UPFConfig config = 1;
+    UPFConfig config = 1;  // UPF configuration details
 }
 
+// IMSIRequest contains the IMSI to query
 message IMSIRequest {
-  string imsi = 1;
+    string imsi = 1;  // International Mobile Subscriber Identity
 }
 
+// IMSIReply contains IMSI-related information
 message IMSIReply {
-  repeated IMSIStruct imsi = 1;
+    repeated IMSIStruct imsi = 1;  // List of IMSI structures
 }
 
-message RuleRequest{
-  string fsied = 1;
+// ValidatePDRRequest contains the parameters to validate a PDR
+message ValidatePDRRequest {
+    string imsi = 1;   // IMSI of the subscriber
+    string pdr_id = 2; // PDR ID to validate
+    string dnn = 3;    // Data Network Name
 }
 
-message RuleReply{
-  rulestruct session=1;
+// ValidatePDRReply contains the validation result
+message ValidatePDRReply {
+    bool valid = 1;    // Whether the PDR is valid
+    string message = 2; // Optional validation message
 }
 
-message rulestruct{
-  pdrstruct pdr=1;
-  farstruct far=2;
-  qerstruct qer=3;
-  urrstruct urr=4;
+// RuleRequest contains the FSEID to query rules
+message RuleRequest {
+    string fsied = 1;  // F-SEID for rule lookup
 }
 
-message pdrstruct{
-  string pdr_id=1;
-  string fsied=2;
+// RuleReply contains the complete session rules
+message RuleReply {
+    rulestruct session = 1;  // Session rule structure
 }
 
-message farstruct{
-  string far_id=1;
-  string fsied=2;
+// rulestruct contains all rule components for a session
+message rulestruct {
+    pdrstruct pdr = 1;  // Packet Detection Rule
+    farstruct far = 2;  // Forwarding Action Rule
+    qerstruct qer = 3;  // QoS Enforcement Rule
+    urrstruct urr = 4;  // Usage Reporting Rule
 }
 
-message qerstruct{
-  string qer_id=1;
-  string fsied=2;
+// pdrstruct defines Packet Detection Rule structure
+message pdrstruct {
+    repeated string pdr_id = 1;  // List of PDR IDs
+    string fsied = 2;            // Associated F-SEID
 }
 
-message urrstruct{
-  string urr_id=1;
-  string fsied=2;
+// farstruct defines Forwarding Action Rule structure
+message farstruct {
+    string far_id = 1;  // FAR ID
+    string fsied = 2;   // Associated F-SEID
 }
 
-message IMSIStruct {  
-  string Internet = 1;
-  string IMS = 2;
+// qerstruct defines QoS Enforcement Rule structure
+message qerstruct {
+    string qer_id = 1;  // QER ID
+    string fsied = 2;   // Associated F-SEID
 }
 
+// urrstruct defines Usage Reporting Rule structure
+message urrstruct {
+    string urr_id = 1;  // URR ID
+    string fsied = 2;   // Associated F-SEID
+}
+
+// IMSIStruct contains network type associations for an IMSI
+message IMSIStruct {
+    string Internet = 1;  // Internet service F-SEID
+    string IMS = 2;      // IMS service F-SEID
+}
+
+// UPFConfig defines the complete configuration for UPF
 message UPFConfig {
-  string mode = 1;
-  TableSizes table_sizes = 2;
-  string log_level = 3;
-  SimConfig sim = 4;
-  bool hwcksum = 5;
-  bool gtppsc = 6;
-  bool ddp = 7;
-  bool measure_upf = 8;
-  bool measure_flow = 9;
-  Interface access = 10;
-  Interface core = 11;
-  int32 workers = 12;
-  int32 max_req_retries = 13;
-  string resp_timeout = 14;
-  bool enable_ntf = 15;
-  bool enable_p4rt = 16;
-  bool enable_hbTimer = 17;
-  bool enable_gtpu_path_monitoring = 18;
-  repeated QoSConfig qci_qos_config = 19;
-  SliceRateLimit slice_rate_limit_config = 20;
-  CPInterface cpiface = 21;
-  P4RTCInterface p4rtciface = 22;
+    string mode = 1;                           // Operation mode
+    TableSizes table_sizes = 2;               // Size configurations for various tables
+    string log_level = 3;                     // Logging level
+    SimConfig sim = 4;                        // Simulation configuration
+    bool hwcksum = 5;                         // Hardware checksum flag
+    bool gtppsc = 6;                          // GTPP service control flag
+    bool ddp = 7;                             // Dynamic Data Path flag
+    bool measure_upf = 8;                     // UPF measurement flag
+    bool measure_flow = 9;                    // Flow measurement flag
+    Interface access = 10;                    // Access interface configuration
+    Interface core = 11;                      // Core interface configuration
+    int32 workers = 12;                       // Number of worker threads
+    int32 max_req_retries = 13;              // Maximum request retries
+    string resp_timeout = 14;                 // Response timeout duration
+    bool enable_ntf = 15;                     // Notification enable flag
+    bool enable_p4rt = 16;                    // P4 Runtime enable flag
+    bool enable_hbTimer = 17;                 // Heartbeat timer enable flag
+    bool enable_gtpu_path_monitoring = 18;    // GTPU path monitoring flag
+    repeated QoSConfig qci_qos_config = 19;  // QoS configurations per QCI
+    SliceRateLimit slice_rate_limit_config = 20;  // Slice rate limit configurations
+    CPInterface cpiface = 21;                 // Control Plane interface configuration
+    P4RTCInterface p4rtciface = 22;           // P4 Runtime Traffic Control interface configuration
 }
 
+// TableSizes defines the size configuration for various lookup tables in the UPF
 message TableSizes {
-  int32 pdrLookup = 1;
-  int32 flowMeasure = 2;
-  int32 appQERLookup = 3;
-  int32 sessionQERLookup = 4;
-  int32 farLookup = 5;
+    int32 pdrLookup = 1;  // Size of the PDR lookup table
+    int32 flowMeasure = 2;  // Size of the flow measurement table
+    int32 appQERLookup = 3;  // Size of the application QER lookup table
+    int32 sessionQERLookup = 4;  // Size of the session QER lookup table
+    int32 farLookup = 5;  // Size of the FAR lookup table
 }
 
+// SimConfig defines the simulation parameters for the UPF
 message SimConfig {
-  string core = 1;
-  int32 max_sessions = 2;
-  string start_ue_ip = 3;
-  string start_enb_ip = 4;
-  string start_aupf_ip = 5;
-  string n6_app_ip = 6;
-  string n9_app_ip = 7;
-  string start_n3_teid = 8;
-  string start_n9_teid = 9;
-  int32 uplink_mbr = 10;
-  int32 uplink_gbr = 11;
-  int32 downlink_mbr = 12;
-  int32 downlink_gbr = 13;
-  int32 pkt_size = 14;
-  int32 total_flows = 15;
+    string core = 1;  // Core network IP address
+    int32 max_sessions = 2;  // Maximum number of sessions
+    string start_ue_ip = 3;  // Starting UE IP address
+    string start_enb_ip = 4;  // Starting eNB IP address
+    string start_aupf_ip = 5;  // Starting AUPF IP address
+    string n6_app_ip = 6;  // N6 application IP address
+    string n9_app_ip = 7;  // N9 application IP address
+    string start_n3_teid = 8;  // Starting N3 TEID
+    string start_n9_teid = 9;  // Starting N9 TEID
+    int32 uplink_mbr = 10;  // Uplink maximum bit rate
+    int32 uplink_gbr = 11;  // Uplink guaranteed bit rate
+    int32 downlink_mbr = 12;  // Downlink maximum bit rate
+    int32 downlink_gbr = 13;  // Downlink guaranteed bit rate
+    int32 pkt_size = 14;  // Packet size
+    int32 total_flows = 15;  // Total number of flows
 }
 
+// Interface defines the configuration for a network interface
 message Interface {
-  string ifname = 1;
+    string ifname = 1;  // Interface name
 }
 
+// QoSConfig defines the Quality of Service parameters for a specific QCI
 message QoSConfig {
-  int32 qci = 1;
-  int32 cbs = 2;
-  int32 ebs = 3;
-  int32 pbs = 4;
-  int32 burst_duration_ms = 5;
-  int32 priority = 6;
+    int32 qci = 1;  // QoS Class Identifier
+    int32 cbs = 2;  // Committed Burst Size
+    int32 ebs = 3;  // Excess Burst Size
+    int32 pbs = 4;  // Peak Data Rate
+    int32 burst_duration_ms = 5;  // Burst duration in milliseconds
+    int32 priority = 6;  // Scheduling priority
 }
 
+// SliceRateLimit defines the rate limiting parameters for a slice
 message SliceRateLimit {
-  int32 n6_bps = 1;
-  int32 n6_burst_bytes = 2;
-  int32 n3_bps = 3;
-  int32 n3_burst_bytes = 4;
+    int32 n6_bps = 1;  // N6 rate limit in bits per second
+    int32 n6_burst_bytes = 2;  // N6 burst size in bytes
+    int32 n3_bps = 3;  // N3 rate limit in bits per second
+    int32 n3_burst_bytes = 4;  // N3 burst size in bytes
 }
 
+// CPInterface defines the configuration for the Control Plane interface
 message CPInterface {
-  repeated string peers = 1;
-  string dnn = 2;
-  string http_port = 3;
-  bool enable_ue_ip_alloc = 4;
-  string ue_ip_pool = 5;
+    repeated string peers = 1;  // List of peer addresses
+    string dnn = 2;  // Data Network Name
+    string http_port = 3;  // HTTP port for communication
+    bool enable_ue_ip_alloc = 4;  // Flag to enable UE IP allocation
+    string ue_ip_pool = 5;  // UE IP address pool
 }
 
+// P4RTCInterface defines the configuration for the P4 Runtime Traffic Control interface
 message P4RTCInterface {
-  string access_ip = 1;
-  string p4rtc_server = 2;
-  string p4rtc_port = 3;
-  int32 slice_id = 4;
-  int32 default_tc = 5;
-  bool clear_state_on_restart = 6;
+    string access_ip = 1;  // Access IP address
+    string p4rtc_server = 2;  // P4 Runtime server address
+    string p4rtc_port = 3;  // P4 Runtime server port
+    int32 slice_id = 4;  // Slice identifier
+    int32 default_tc = 5;  // Default traffic class
+    bool clear_state_on_restart = 6;  // Flag to clear state on restart
 }

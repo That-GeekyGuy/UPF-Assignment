@@ -1,3 +1,8 @@
+/*
+Package config implements the configuration management agent for the UPF service.
+It provides gRPC endpoints for retrieving UPF configuration and handles the parsing
+of configuration files.
+*/
 package config
 
 import (
@@ -16,96 +21,105 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// server implements the gRPC Request service for configuration management
 type server struct {
 	pb.UnimplementedRequestServer
 }
 
+// UPFConfig represents the complete configuration structure for the UPF service
 type UPFConfig struct {
-	Mode                     string         `json:"mode"`
-	TableSizes               TableSizes     `json:"table_sizes"`
-	LogLevel                 string         `json:"log_level"`
-	Sim                      SimConfig      `json:"sim"`
-	HWChecksum               bool           `json:"hwcksum"`
-	GTPPSC                   bool           `json:"gtppsc"`
-	DDP                      bool           `json:"ddp"`
-	MeasureUPF               bool           `json:"measure_upf"`
-	MeasureFlow              bool           `json:"measure_flow"`
-	Access                   Interface      `json:"access"`
-	Core                     Interface      `json:"core"`
-	Workers                  int            `json:"workers"`
-	MaxReqRetries            int            `json:"max_req_retries"`
-	RespTimeout              string         `json:"resp_timeout"`
-	EnableNTF                bool           `json:"enable_ntf"`
-	EnableP4RT               bool           `json:"enable_p4rt"`
-	EnableHBTimer            bool           `json:"enable_hbTimer"`
-	EnableGTPUPathMonitoring bool           `json:"enable_gtpu_path_monitoring"`
-	QCIQoS                   []QoSConfig    `json:"qci_qos_config"`
-	SliceRateLimit           SliceRateLimit `json:"slice_rate_limit_config"`
-	CPInterface              CPInterface    `json:"cpiface"`
-	P4RTCInterface           P4RTCInterface `json:"p4rtciface"`
+	Mode                     string         `json:"mode"`                        // Operating mode of the UPF
+	TableSizes               TableSizes     `json:"table_sizes"`                 // Size configurations for lookup tables
+	LogLevel                 string         `json:"log_level"`                   // Logging verbosity level
+	Sim                      SimConfig      `json:"sim"`                         // Simulation-related configurations
+	HWChecksum               bool           `json:"hwcksum"`                     // Hardware checksum enable flag
+	GTPPSC                   bool           `json:"gtppsc"`                      // GTP PSC feature enable flag
+	DDP                      bool           `json:"ddp"`                         // Dynamic Data Path enable flag
+	MeasureUPF               bool           `json:"measure_upf"`                 // UPF measurement enable flag
+	MeasureFlow              bool           `json:"measure_flow"`                // Flow measurement enable flag
+	Access                   Interface      `json:"access"`                      // Access interface configuration
+	Core                     Interface      `json:"core"`                        // Core interface configuration
+	Workers                  int            `json:"workers"`                     // Number of worker threads
+	MaxReqRetries            int            `json:"max_req_retries"`             // Maximum request retry attempts
+	RespTimeout              string         `json:"resp_timeout"`                // Response timeout duration
+	EnableNTF                bool           `json:"enable_ntf"`                  // Network Token Function enable flag
+	EnableP4RT               bool           `json:"enable_p4rt"`                 // P4 Runtime enable flag
+	EnableHBTimer            bool           `json:"enable_hbTimer"`              // Heartbeat timer enable flag
+	EnableGTPUPathMonitoring bool           `json:"enable_gtpu_path_monitoring"` // GTPU path monitoring flag
+	QCIQoS                   []QoSConfig    `json:"qci_qos_config"`              // QoS configurations per QCI
+	SliceRateLimit           SliceRateLimit `json:"slice_rate_limit_config"`     // Slice rate limiting configuration
+	CPInterface              CPInterface    `json:"cpiface"`                     // Control Plane interface configuration
+	P4RTCInterface           P4RTCInterface `json:"p4rtciface"`                  // P4 Runtime Traffic Control interface
 }
 
+// TableSizes defines the sizes for various lookup tables used in the UPF
 type TableSizes struct {
-	PDRLookup        int `json:"pdrLookup"`
-	FlowMeasure      int `json:"flowMeasure"`
-	AppQERLookup     int `json:"appQERLookup"`
-	SessionQERLookup int `json:"sessionQERLookup"`
-	FARLookup        int `json:"farLookup"`
+	PDRLookup        int `json:"pdrLookup"`        // Packet Detection Rule lookup table size
+	FlowMeasure      int `json:"flowMeasure"`      // Flow measurement table size
+	AppQERLookup     int `json:"appQERLookup"`     // Application QER lookup table size
+	SessionQERLookup int `json:"sessionQERLookup"` // Session QER lookup table size
+	FARLookup        int `json:"farLookup"`        // Forward Action Rule lookup table size
 }
 
+// SimConfig contains simulation-specific configuration parameters
 type SimConfig struct {
-	Core        string `json:"core"`
-	MaxSessions int    `json:"max_sessions"`
-	StartUEIP   string `json:"start_ue_ip"`
-	StartENBIP  string `json:"start_enb_ip"`
-	StartAUPFIP string `json:"start_aupf_ip"`
-	N6AppIP     string `json:"n6_app_ip"`
-	N9AppIP     string `json:"n9_app_ip"`
-	StartN3TEID string `json:"start_n3_teid"`
-	StartN9TEID string `json:"start_n9_teid"`
-	UplinkMBR   int    `json:"uplink_mbr"`
-	UplinkGBR   int    `json:"uplink_gbr"`
-	DownlinkMBR int    `json:"downlink_mbr"`
-	DownlinkGBR int    `json:"downlink_gbr"`
-	PktSize     int    `json:"pkt_size"`
-	TotalFlows  int    `json:"total_flows"`
+	Core        string `json:"core"`          // Core network address
+	MaxSessions int    `json:"max_sessions"`  // Maximum number of simultaneous sessions
+	StartUEIP   string `json:"start_ue_ip"`   // Starting IP address for UE range
+	StartENBIP  string `json:"start_enb_ip"`  // Starting IP address for eNodeB range
+	StartAUPFIP string `json:"start_aupf_ip"` // Starting IP address for AUPF range
+	N6AppIP     string `json:"n6_app_ip"`     // N6 interface application IP
+	N9AppIP     string `json:"n9_app_ip"`     // N9 interface application IP
+	StartN3TEID string `json:"start_n3_teid"` // Starting N3 TEID value
+	StartN9TEID string `json:"start_n9_teid"` // Starting N9 TEID value
+	UplinkMBR   int    `json:"uplink_mbr"`    // Uplink Maximum Bit Rate
+	UplinkGBR   int    `json:"uplink_gbr"`    // Uplink Guaranteed Bit Rate
+	DownlinkMBR int    `json:"downlink_mbr"`  // Downlink Maximum Bit Rate
+	DownlinkGBR int    `json:"downlink_gbr"`  // Downlink Guaranteed Bit Rate
+	PktSize     int    `json:"pkt_size"`      // Packet size for simulation
+	TotalFlows  int    `json:"total_flows"`   // Total number of flows to simulate
 }
 
+// Interface defines network interface configuration
 type Interface struct {
-	IfName string `json:"ifname"`
+	IfName string `json:"ifname"` // Interface name
 }
 
+// QoSConfig defines Quality of Service parameters for a specific QCI
 type QoSConfig struct {
-	QCI             int `json:"qci"`
-	CBS             int `json:"cbs"`
-	EBS             int `json:"ebs"`
-	PBS             int `json:"pbs"`
-	BurstDurationMS int `json:"burst_duration_ms,omitempty"`
-	Priority        int `json:"priority"`
+	QCI             int `json:"qci"`                         // QoS Class Identifier
+	CBS             int `json:"cbs"`                         // Committed Burst Size
+	EBS             int `json:"ebs"`                         // Excess Burst Size
+	PBS             int `json:"pbs"`                         // Peak Burst Size
+	BurstDurationMS int `json:"burst_duration_ms,omitempty"` // Burst Duration in milliseconds
+	Priority        int `json:"priority"`                    // QoS priority level
 }
 
+// SliceRateLimit defines rate limiting parameters for network slices
 type SliceRateLimit struct {
-	N6Bps        int `json:"n6_bps"`
-	N6BurstBytes int `json:"n6_burst_bytes"`
-	N3Bps        int `json:"n3_bps"`
-	N3BurstBytes int `json:"n3_burst_bytes"`
+	N6Bps        int `json:"n6_bps"`         // N6 interface rate limit in bps
+	N6BurstBytes int `json:"n6_burst_bytes"` // N6 interface burst size in bytes
+	N3Bps        int `json:"n3_bps"`         // N3 interface rate limit in bps
+	N3BurstBytes int `json:"n3_burst_bytes"` // N3 interface burst size in bytes
 }
 
+// CPInterface defines Control Plane interface configuration
 type CPInterface struct {
-	Peers           []string `json:"peers"`
-	DNN             string   `json:"dnn"`
-	HTTPPort        string   `json:"http_port"`
-	EnableUEIPAlloc bool     `json:"enable_ue_ip_alloc"`
-	UEIPPool        string   `json:"ue_ip_pool"`
+	Peers           []string `json:"peers"`              // List of CP peer addresses
+	DNN             string   `json:"dnn"`                // Data Network Name
+	HTTPPort        string   `json:"http_port"`          // HTTP port for CP interface
+	EnableUEIPAlloc bool     `json:"enable_ue_ip_alloc"` // Enable UE IP allocation
+	UEIPPool        string   `json:"ue_ip_pool"`         // UE IP address pool
 }
 
+// P4RTCInterface defines P4 Runtime Traffic Control interface configuration
 type P4RTCInterface struct {
-	AccessIP            string `json:"access_ip"`
-	P4RTCServer         string `json:"p4rtc_server"`
-	P4RTCPort           string `json:"p4rtc_port"`
-	SliceID             int    `json:"slice_id"`
-	DefaultTC           int    `json:"default_tc"`
-	ClearStateOnRestart bool   `json:"clear_state_on_restart"`
+	AccessIP            string `json:"access_ip"`              // Access IP address for P4RTC
+	P4RTCServer         string `json:"p4rtc_server"`           // P4RTC server address
+	P4RTCPort           string `json:"p4rtc_port"`             // P4RTC port
+	SliceID             int    `json:"slice_id"`               // Slice identifier
+	DefaultTC           int    `json:"default_tc"`             // Default traffic class
+	ClearStateOnRestart bool   `json:"clear_state_on_restart"` // Clear state on restart flag
 }
 
 func (s *server) GetConfig(ctx context.Context, req *pb.ConfigRequest) (*pb.ConfigReply, error) {

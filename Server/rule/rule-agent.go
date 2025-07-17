@@ -1,3 +1,8 @@
+/*
+Package rule implements the Rule management agent for the UPF service.
+It provides gRPC endpoints for retrieving session rules including PDR (Packet Detection Rules),
+FAR (Forwarding Action Rules), QER (QoS Enforcement Rules), and URR (Usage Reporting Rules).
+*/
 package rule
 
 import (
@@ -12,48 +17,100 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// IMSI represents the IMSI information
-// This is a local struct, different from the protobuf IMSIStruct
+// Sessions represents a complete set of rules for a UPF session
 type Sessions struct {
-	pdr Pdrstruct
-	far Farstruct
-	qer Qerstruct
-	urr Urrstruct
+	pdr Pdrstruct // Packet Detection Rules
+	far Farstruct // Forwarding Action Rules
+	qer Qerstruct // QoS Enforcement Rules
+	urr Urrstruct // Usage Reporting Rules
 }
 
+// Pdrstruct defines the structure for Packet Detection Rules
 type Pdrstruct struct {
-	pdr_id string
-	fsied  string
+	pdr_id []string // List of PDR identifiers
+	fsied  string   // Associated F-SEID
 }
 
+// Farstruct defines the structure for Forwarding Action Rules
 type Farstruct struct {
-	far_id string
-	fsied  string
+	far_id string // FAR identifier
+	fsied  string // Associated F-SEID
 }
 
+// Qerstruct defines the structure for QoS Enforcement Rules
 type Qerstruct struct {
-	qer_id string
-	fsied  string
+	qer_id string // QER identifier
+	fsied  string // Associated F-SEID
 }
 
+// Urrstruct defines the structure for Usage Reporting Rules
 type Urrstruct struct {
-	urr_id string
-	fsied  string
+	urr_id string // URR identifier
+	fsied  string // Associated F-SEID
 }
 
+// ruleServer implements the gRPC Request service for rule management
 type ruleServer struct {
 	pb.UnimplementedRequestServer
-	session map[string]Sessions
+	session map[string]Sessions // Map of F-SEID to session rules
 }
 
-func (s *ruleServer) GetRule(ctx context.Context, req *pb.RuleRequest) (*pb.RuleReply, error) {
-	// Get the IMSI info from the map
-	sessionInfo, exists := s.session[req.Fsied]
-	if !exists {
-		return nil, status.Errorf(codes.NotFound, "Session not found")
+// ValidatePDR validates if a PDR is valid for a given IMSI and DNN
+func (s *ruleServer) ValidatePDR(ctx context.Context, req *pb.ValidatePDRRequest) (*pb.ValidatePDRReply, error) {
+	if req.Imsi == "" || req.PdrId == "" || req.Dnn == "" {
+		return &pb.ValidatePDRReply{
+			Valid:   false,
+			Message: "IMSI, PDR ID, and DNN are required fields",
+		}, nil
 	}
 
-	// Create and return the response
+	// In a real implementation, you would:
+	// 1. Look up the IMSI to get the associated F-SEID
+	// 2. Find the session using the F-SEID
+	// 3. Check if the PDR ID exists in the session's PDRs
+	// 4. Validate the DNN against the session's allowed DNNs
+
+	// For this example, we'll do a simple validation
+	found := false
+	for _, session := range s.session {
+		for _, pdrID := range session.pdr.pdr_id {
+			if pdrID == req.PdrId {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	if !found {
+		return &pb.ValidatePDRReply{
+			Valid:   false,
+			Message: "PDR not found for the given IMSI",
+		}, nil
+	}
+
+	// In a real implementation, you would also validate:
+	// 1. If the DNN is allowed for this IMSI
+	// 2. If the PDR is active and not expired
+	// 3. Any other business rules specific to your use case
+
+	return &pb.ValidatePDRReply{
+		Valid:   true,
+		Message: "PDR validation successful",
+	}, nil
+}
+
+// GetRule handles requests for retrieving session rules by F-SEID
+func (s *ruleServer) GetRule(ctx context.Context, req *pb.RuleRequest) (*pb.RuleReply, error) {
+	// Look up session information by F-SEID
+	sessionInfo, exists := s.session[req.Fsied]
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "Session not found for F-SEID: %s", req.Fsied)
+	}
+
+	// Create and return the response with all rule information
 	return &pb.RuleReply{
 		Session: &pb.Rulestruct{
 			Pdr: &pb.Pdrstruct{
@@ -76,31 +133,41 @@ func (s *ruleServer) GetRule(ctx context.Context, req *pb.RuleRequest) (*pb.Rule
 	}, nil
 }
 
+// StartRuleAgent initializes and starts the rule management gRPC server
+// on the specified port with sample session rules
 func StartRuleAgent(port string) error {
-	lis, err := net.Listen("tcp", ":2000")
+	// Create TCP listener
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("Failed to listen on port %s: %v", port, err)
 	}
 
+	// Initialize gRPC server
 	s := grpc.NewServer()
-	// Initialize the server with sample data
+
+	// Initialize the rule server with an empty session map
 	srv := &ruleServer{
 		session: make(map[string]Sessions),
 	}
 
-	// Add some sample IMSI data
-	srv.session["fseid1"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr1", fsied: "fsied1"}, far: Farstruct{far_id: "far1", fsied: "fsied1"}, qer: Qerstruct{qer_id: "qer1", fsied: "fsied1"}, urr: Urrstruct{urr_id: "urr1", fsied: "fsied1"}}
-	srv.session["fseid2"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr2", fsied: "fsied2"}, far: Farstruct{far_id: "far2", fsied: "fsied2"}, qer: Qerstruct{qer_id: "qer2", fsied: "fsied2"}, urr: Urrstruct{urr_id: "urr2", fsied: "fsied2"}}
-	srv.session["fseid3"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr3", fsied: "fsied3"}, far: Farstruct{far_id: "far3", fsied: "fsied3"}, qer: Qerstruct{qer_id: "qer3", fsied: "fsied3"}, urr: Urrstruct{urr_id: "urr3", fsied: "fsied3"}}
-	srv.session["fseid4"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr4", fsied: "fsied4"}, far: Farstruct{far_id: "far4", fsied: "fsied4"}, qer: Qerstruct{qer_id: "qer4", fsied: "fsied4"}, urr: Urrstruct{urr_id: "urr4", fsied: "fsied4"}}
-	srv.session["fseid5"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr5", fsied: "fsied5"}, far: Farstruct{far_id: "far5", fsied: "fsied5"}, qer: Qerstruct{qer_id: "qer5", fsied: "fsied5"}, urr: Urrstruct{urr_id: "urr5", fsied: "fsied5"}}
-	srv.session["fseid6"] = Sessions{pdr: Pdrstruct{pdr_id: "pdr6", fsied: "fsied6"}, far: Farstruct{far_id: "far6", fsied: "fsied6"}, qer: Qerstruct{qer_id: "qer6", fsied: "fsied6"}, urr: Urrstruct{urr_id: "urr6", fsied: "fsied6"}}
+	// Add sample session rules for testing
+	// In production, these would be loaded from a persistent store
+	srv.session["fseid1"] = Sessions{
+		pdr: Pdrstruct{pdr_id: []string{"pdr1", "pdr2"}, fsied: "fseid1"},
+		far: Farstruct{far_id: "far1", fsied: "fseid1"},
+		qer: Qerstruct{qer_id: "qer1", fsied: "fseid1"},
+		urr: Urrstruct{urr_id: "urr1", fsied: "fseid1"},
+	}
+	srv.session["fseid2"] = Sessions{
+		pdr: Pdrstruct{pdr_id: []string{"pdr3", "pdr4"}, fsied: "fseid2"},
+		far: Farstruct{far_id: "far2", fsied: "fseid2"},
+		qer: Qerstruct{qer_id: "qer2", fsied: "fseid2"},
+		urr: Urrstruct{urr_id: "urr2", fsied: "fseid2"},
+	}
 
+	// Register the rule server with gRPC
 	pb.RegisterRequestServer(s, srv)
 
-	log.Println("gRPC server listening on port 2000...")
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
+	log.Printf("Rule Agent listening on port %s...", port)
 	return s.Serve(lis)
 }

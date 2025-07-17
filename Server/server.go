@@ -1,3 +1,7 @@
+/*
+Package main implements a multi-agent gRPC server that manages various UPF (User Plane Function)
+services including configuration, IMSI handling, PFCP protocol, and rule management.
+*/
 package main
 
 import (
@@ -10,13 +14,14 @@ import (
 	"upf/Server/rule"
 )
 
+// main is the entry point of the server application that starts all agent services
 func main() {
 	log.Println("🚀 Starting Multi-Agent gRPC Server...")
 
 	var wg sync.WaitGroup
+	wg.Add(4) // We have 4 agents running concurrently
 
-	wg.Add(4) // We have 4 agents
-
+	// Start Config Agent on port 3000
 	go func() {
 		defer wg.Done()
 		if err := config.StartConfigAgent("3000"); err != nil {
@@ -24,6 +29,7 @@ func main() {
 		}
 	}()
 
+	// Start IMSI Agent on port 4678
 	go func() {
 		defer wg.Done()
 		if err := imsi.StartIMSIAgent("4678"); err != nil {
@@ -31,6 +37,7 @@ func main() {
 		}
 	}()
 
+	// Start PFCP Agent on port 50051
 	go func() {
 		defer wg.Done()
 		if err := pfcp.StartPFCPAgent("50051"); err != nil {
@@ -38,6 +45,7 @@ func main() {
 		}
 	}()
 
+	// Start Rule Agent on port 2000
 	go func() {
 		defer wg.Done()
 		if err := rule.StartRuleAgent("2000"); err != nil {
@@ -45,6 +53,7 @@ func main() {
 		}
 	}()
 
+	// Wait for all agents to complete
 	wg.Wait()
 	log.Println("✨ All agents have exited.")
 }
