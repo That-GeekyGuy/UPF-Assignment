@@ -17,5 +17,11 @@ FROM debian:bookworm
 
 WORKDIR /app
 COPY --from=builder /app/Client/client .
+COPY --from=builder /app/Client/templates ./templates
+COPY --from=builder /app/Client/static ./static
 
-CMD ["./client"]
+# Expose web server port
+EXPOSE 8080
+
+# Run in web mode by default
+CMD ["./client", "--web", "--port", "8080"]
